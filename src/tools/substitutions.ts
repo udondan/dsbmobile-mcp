@@ -87,7 +87,9 @@ Error handling:
         const filtered = filter
           ? plans.map((plan) => ({
               ...plan,
-              entries: plan.entries.filter((e) => e.className.toLowerCase().includes(filter)),
+              entries: plan.entries.filter((entry) =>
+                entry.className.toLowerCase().includes(filter),
+              ),
             }))
           : plans;
 
@@ -168,23 +170,23 @@ function formatSubstitutions(plans: SubstitutionPlan[], filter?: string): string
 
     for (const [cls, entries] of byClass) {
       lines.push(`### Class ${cls}`);
-      for (const e of entries) {
+      for (const substitution of entries) {
         const teacher =
-          e.originalTeacher && e.substituteTeacher
-            ? `${e.originalTeacher} → ${e.substituteTeacher}`
-            : e.substituteTeacher || e.originalTeacher;
+          substitution.originalTeacher && substitution.substituteTeacher
+            ? `${substitution.originalTeacher} → ${substitution.substituteTeacher}`
+            : substitution.substituteTeacher || substitution.originalTeacher;
         const room =
-          e.originalRoom && e.substituteRoom
-            ? `${e.originalRoom} → ${e.substituteRoom}`
-            : e.substituteRoom || e.originalRoom;
+          substitution.originalRoom && substitution.substituteRoom
+            ? `${substitution.originalRoom} → ${substitution.substituteRoom}`
+            : substitution.substituteRoom || substitution.originalRoom;
 
         const parts = [
-          `**${e.type}**`,
-          `Period ${e.period}`,
-          e.subject && `Subject: ${e.subject}`,
+          `**${substitution.type}**`,
+          `Period ${substitution.period}`,
+          substitution.subject && `Subject: ${substitution.subject}`,
           teacher && `Teacher: ${teacher}`,
           room && `Room: ${room}`,
-          e.text && `Note: ${e.text}`,
+          substitution.text && `Note: ${substitution.text}`,
         ].filter(Boolean);
 
         lines.push(`- ${parts.join(' | ')}`);

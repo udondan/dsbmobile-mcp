@@ -7,18 +7,17 @@
 import { beforeAll, describe, expect, test } from 'bun:test';
 import { DsbmobileClient } from '../src/services/dsbmobile.js';
 
-const hasCredentials = !!process.env.DSB_USERNAME && !!process.env.DSB_PASSWORD;
+const hasCredentials = Boolean(process.env.DSB_USERNAME) && Boolean(process.env.DSB_PASSWORD);
 
-const describeIfCredentials = hasCredentials ? describe : describe.skip;
-
-describeIfCredentials('DsbmobileClient (integration)', () => {
+describe('DsbmobileClient (integration)', () => {
   let client: DsbmobileClient;
 
   beforeAll(() => {
+    if (!hasCredentials) return;
     client = new DsbmobileClient();
   });
 
-  test('getTimetables returns at least one entry', async () => {
+  test.skipIf(!hasCredentials)('getTimetables returns at least one entry', async () => {
     const entries = await client.getTimetables();
     expect(entries.length).toBeGreaterThan(0);
     const first = entries[0];
@@ -28,24 +27,24 @@ describeIfCredentials('DsbmobileClient (integration)', () => {
     expect(first.date).toMatch(/\d{2}\.\d{2}\.\d{4}/);
   });
 
-  test('getTimetables entries have valid URLs', async () => {
+  test.skipIf(!hasCredentials)('getTimetables entries have valid URLs', async () => {
     const entries = await client.getTimetables();
     for (const entry of entries) {
       expect(entry.url).toMatch(/^https:\/\/light\.dsbcontrol\.de\//);
     }
   });
 
-  test('getNews returns an array (may be empty)', async () => {
+  test.skipIf(!hasCredentials)('getNews returns an array (may be empty)', async () => {
     const entries = await client.getNews();
     expect(Array.isArray(entries)).toBe(true);
   });
 
-  test('getDocuments returns an array (may be empty)', async () => {
+  test.skipIf(!hasCredentials)('getDocuments returns an array (may be empty)', async () => {
     const entries = await client.getDocuments();
     expect(Array.isArray(entries)).toBe(true);
   });
 
-  test('getSubstitutions returns parsed plans with entries', async () => {
+  test.skipIf(!hasCredentials)('getSubstitutions returns parsed plans with entries', async () => {
     const plans = await client.getSubstitutions();
     expect(plans.length).toBeGreaterThan(0);
     const first = plans[0];
@@ -55,7 +54,7 @@ describeIfCredentials('DsbmobileClient (integration)', () => {
     expect(first.entries.length).toBeGreaterThan(0);
   });
 
-  test('getSubstitutions entries have required fields', async () => {
+  test.skipIf(!hasCredentials)('getSubstitutions entries have required fields', async () => {
     const plans = await client.getSubstitutions();
     const allEntries = plans.flatMap((p) => p.entries);
     expect(allEntries.length).toBeGreaterThan(0);
@@ -67,15 +66,14 @@ describeIfCredentials('DsbmobileClient (integration)', () => {
     }
   });
 
-  test('throws on invalid credentials', async () => {
+  test.skipIf(!hasCredentials)('throws on invalid credentials', () => {
     const originalUsername = process.env.DSB_USERNAME;
     const originalPassword = process.env.DSB_PASSWORD;
     process.env.DSB_USERNAME = 'invalid_user';
     process.env.DSB_PASSWORD = 'invalid_pass';
     const badClient = new DsbmobileClient();
-    // Restore original credentials before awaiting so other tests are unaffected
     process.env.DSB_USERNAME = originalUsername;
     process.env.DSB_PASSWORD = originalPassword;
-    await expect(badClient.getTimetables()).rejects.toThrow(/Error:/);
+    expect(badClient.getTimetables()).rejects.toThrow(/Error:/);
   });
 });

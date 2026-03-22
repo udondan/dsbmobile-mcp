@@ -1,48 +1,106 @@
 import { describe, expect, mock, test } from 'bun:test';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { DsbmobileClient } from '../src/services/dsbmobile.js';
 import { registerDocumentsTool } from '../src/tools/documents.js';
 import { registerNewsTool } from '../src/tools/news.js';
 import { registerSubstitutionsTool } from '../src/tools/substitutions.js';
 import { registerTimetablesTool } from '../src/tools/timetables.js';
-import type { SubstitutionPlan, TimetableEntry } from '../src/types.js';
+import type { DocumentEntry, NewsEntry, SubstitutionPlan, TimetableEntry } from '../src/types.js';
+
+// --- Types ---
+
+interface ToolResult {
+  text: string;
+  structuredContent: Record<string, unknown>;
+  isError: boolean | undefined;
+}
 
 // --- Helpers ---
 
 function makeMockClient(overrides: Partial<DsbmobileClient> = {}): DsbmobileClient {
   return {
-    getTimetables: mock(async () => []),
-    getNews: mock(async () => []),
-    getDocuments: mock(async () => []),
-    getSubstitutions: mock(async () => []),
+    getTimetables: mock(() => Promise.resolve<TimetableEntry[]>([])),
+    getNews: mock(() => Promise.resolve<NewsEntry[]>([])),
+    getDocuments: mock(() => Promise.resolve<DocumentEntry[]>([])),
+    getSubstitutions: mock(() => Promise.resolve<SubstitutionPlan[]>([])),
     ...overrides,
   } as unknown as DsbmobileClient;
 }
 
+type RegisterFunction = (server: McpServer, client: DsbmobileClient) => void;
+type ToolHandler = (arguments_: Record<string, unknown>) => Promise<unknown>;
+
+interface FakeServer {
+  registerTool: (name: string, config: unknown, function_: ToolHandler) => void;
+}
+
 async function callTool(
-  register: (server: any, client: DsbmobileClient) => void,
+  register: RegisterFunction,
   client: DsbmobileClient,
-  args: Record<string, unknown> = {},
-): Promise<{ text: string; structuredContent?: unknown; isError?: boolean }> {
-  let handler: ((args: any) => Promise<any>) | undefined;
-  const fakeServer = {
-    registerTool: (_name: string, _config: unknown, fn: (args: any) => Promise<any>) => {
-      handler = fn;
+  arguments_: Record<string, unknown> = {},
+): Promise<ToolResult> {
+  let handler: ToolHandler | undefined;
+  const fakeServer: FakeServer = {
+    registerTool: (_name, _config, function_) => {
+      handler = function_;
     },
   };
-  register(fakeServer, client);
-  const result = await handler!(args);
+  register(fakeServer as unknown as McpServer, client);
+  const result = handler!(arguments_) as Promise<{
+    content: { text: string }[];
+    structuredContent?: Record<string, unknown>;
+    isError?: boolean;
+  }>;
+  const resolved = await result;
   return {
-    text: result.content[0].text as string,
-    structuredContent: result.structuredContent,
-    isError: result.isError,
+    text: resolved.content[0].text,
+    structuredContent: resolved.structuredContent ?? {},
+    isError: resolved.isError,
   };
 }
+
+// --- Shared fixture ---
+
+function makePlan(entries: SubstitutionPlan['entries']): SubstitutionPlan {
+  return {
+    title: 'V-Homepage heute (Seite 1)',
+    planDate: '20.3.2026 Freitag',
+    lastUpdated: '20.03.2026 10:23',
+    url: 'https://example.com/plan.htm',
+    affectedClasses: '10a, 11a',
+    entries,
+  };
+}
+
+const entryA: SubstitutionPlan['entries'][number] = {
+  className: '10a',
+  type: 'Vertretung',
+  period: '3',
+  originalTeacher: 'Aaa',
+  substituteTeacher: 'Bbb',
+  subject: 'SPO',
+  originalRoom: 'SPH1',
+  substituteRoom: 'A103',
+  text: '',
+};
+
+const entryB: SubstitutionPlan['entries'][number] = {
+  className: '11a',
+  type: 'Entfall',
+  period: '5',
+  originalTeacher: 'Ccc',
+  substituteTeacher: '',
+  subject: 'DE',
+  originalRoom: 'A201',
+  substituteRoom: '',
+  text: '',
+};
 
 // --- Timetables tool ---
 
 describe('get_timetables tool', () => {
   test('returns message when no timetables available', async () => {
-    const client = makeMockClient({ getTimetables: mock(async () => []) });
+    const client = makeMockClient();
     const result = await callTool(registerTimetablesTool, client);
     expect(result.text).toContain('keine');
   });
@@ -56,18 +114,16 @@ describe('get_timetables tool', () => {
         url: 'https://example.com/plan.htm',
       },
     ];
-    const client = makeMockClient({ getTimetables: mock(async () => entries) });
+    const client = makeMockClient({ getTimetables: mock(() => Promise.resolve(entries)) });
     const result = await callTool(registerTimetablesTool, client);
     expect(result.text).toContain('V-Homepage heute');
     expect(result.text).toContain('https://example.com/plan.htm');
-    expect((result.structuredContent as any).count).toBe(1);
+    expect(result.structuredContent.count).toBe(1);
   });
 
   test('returns error text on failure', async () => {
     const client = makeMockClient({
-      getTimetables: mock(async () => {
-        throw new Error('Error: Auth failed');
-      }),
+      getTimetables: mock(() => Promise.reject(new Error('Error: Auth failed'))),
     });
     const result = await callTool(registerTimetablesTool, client);
     expect(result.isError).toBe(true);
@@ -78,207 +134,62 @@ describe('get_timetables tool', () => {
 // --- Substitutions tool ---
 
 describe('get_substitutions tool', () => {
-  const makePlan = (entries: SubstitutionPlan['entries']): SubstitutionPlan => ({
-    title: 'V-Homepage heute (Seite 1)',
-    planDate: '20.3.2026 Freitag',
-    lastUpdated: '20.03.2026 10:23',
-    url: 'https://example.com/plan.htm',
-    affectedClasses: '05b, 06c',
-    entries,
-  });
-
   test('returns message when no plans available', async () => {
-    const client = makeMockClient({ getSubstitutions: mock(async () => []) });
+    const client = makeMockClient();
     const result = await callTool(registerSubstitutionsTool, client);
     expect(result.text).toContain('keine');
   });
 
   test('returns all entries when no filter given', async () => {
-    const plan = makePlan([
-      {
-        className: '05b',
-        type: 'Vertretung',
-        period: '3',
-        originalTeacher: 'Läp',
-        substituteTeacher: 'Jun',
-        subject: 'SPO',
-        originalRoom: 'SPH1',
-        substituteRoom: 'A103',
-        text: '',
-      },
-      {
-        className: '06c',
-        type: 'Entfall',
-        period: '5',
-        originalTeacher: 'Mül',
-        substituteTeacher: '',
-        subject: 'DE',
-        originalRoom: 'A201',
-        substituteRoom: '',
-        text: '',
-      },
-    ]);
-    const client = makeMockClient({
-      getSubstitutions: mock(async () => [plan]),
-    });
+    const plan = makePlan([entryA, entryB]);
+    const client = makeMockClient({ getSubstitutions: mock(() => Promise.resolve([plan])) });
     const result = await callTool(registerSubstitutionsTool, client);
-    expect((result.structuredContent as any).totalEntries).toBe(2);
-    expect(result.text).toContain('05b');
-    expect(result.text).toContain('06c');
+    expect(result.structuredContent.totalEntries).toBe(2);
+    expect(result.text).toContain('10a');
+    expect(result.text).toContain('11a');
   });
 
   test('filters by className parameter', async () => {
-    const plan = makePlan([
-      {
-        className: '05b',
-        type: 'Vertretung',
-        period: '3',
-        originalTeacher: 'Läp',
-        substituteTeacher: 'Jun',
-        subject: 'SPO',
-        originalRoom: 'SPH1',
-        substituteRoom: 'A103',
-        text: '',
-      },
-      {
-        className: '06c',
-        type: 'Entfall',
-        period: '5',
-        originalTeacher: 'Mül',
-        substituteTeacher: '',
-        subject: 'DE',
-        originalRoom: 'A201',
-        substituteRoom: '',
-        text: '',
-      },
-    ]);
-    const client = makeMockClient({
-      getSubstitutions: mock(async () => [plan]),
-    });
-    const result = await callTool(registerSubstitutionsTool, client, {
-      className: '05b',
-    });
-    expect((result.structuredContent as any).totalEntries).toBe(1);
-    expect(result.text).toContain('Class 05b');
-    expect(result.text).not.toContain('Class 06c');
+    const plan = makePlan([entryA, entryB]);
+    const client = makeMockClient({ getSubstitutions: mock(() => Promise.resolve([plan])) });
+    const result = await callTool(registerSubstitutionsTool, client, { className: '10a' });
+    expect(result.structuredContent.totalEntries).toBe(1);
+    expect(result.text).toContain('Class 10a');
+    expect(result.text).not.toContain('Class 11a');
   });
 
   test('className filter is case-insensitive', async () => {
-    const plan = makePlan([
-      {
-        className: '05b',
-        type: 'Vertretung',
-        period: '3',
-        originalTeacher: 'Läp',
-        substituteTeacher: 'Jun',
-        subject: 'SPO',
-        originalRoom: '',
-        substituteRoom: '',
-        text: '',
-      },
-    ]);
-    const client = makeMockClient({
-      getSubstitutions: mock(async () => [plan]),
-    });
-    const result = await callTool(registerSubstitutionsTool, client, {
-      className: '05B',
-    });
-    expect((result.structuredContent as any).totalEntries).toBe(1);
+    const plan = makePlan([entryA]);
+    const client = makeMockClient({ getSubstitutions: mock(() => Promise.resolve([plan])) });
+    const result = await callTool(registerSubstitutionsTool, client, { className: '10A' });
+    expect(result.structuredContent.totalEntries).toBe(1);
   });
 
   test('returns message when filter matches nothing', async () => {
-    const plan = makePlan([
-      {
-        className: '05b',
-        type: 'Vertretung',
-        period: '3',
-        originalTeacher: 'Läp',
-        substituteTeacher: 'Jun',
-        subject: 'SPO',
-        originalRoom: '',
-        substituteRoom: '',
-        text: '',
-      },
-    ]);
-    const client = makeMockClient({
-      getSubstitutions: mock(async () => [plan]),
-    });
-    const result = await callTool(registerSubstitutionsTool, client, {
-      className: '99z',
-    });
+    const plan = makePlan([entryA]);
+    const client = makeMockClient({ getSubstitutions: mock(() => Promise.resolve([plan])) });
+    const result = await callTool(registerSubstitutionsTool, client, { className: '99z' });
     expect(result.text).toContain('99z');
     expect(result.isError).toBeUndefined();
   });
 
   test('uses DSB_CLASS env var as default filter', async () => {
-    process.env.DSB_CLASS = '06c';
-    const plan = makePlan([
-      {
-        className: '05b',
-        type: 'Vertretung',
-        period: '3',
-        originalTeacher: 'Läp',
-        substituteTeacher: 'Jun',
-        subject: 'SPO',
-        originalRoom: '',
-        substituteRoom: '',
-        text: '',
-      },
-      {
-        className: '06c',
-        type: 'Entfall',
-        period: '5',
-        originalTeacher: 'Mül',
-        substituteTeacher: '',
-        subject: 'DE',
-        originalRoom: '',
-        substituteRoom: '',
-        text: '',
-      },
-    ]);
-    const client = makeMockClient({
-      getSubstitutions: mock(async () => [plan]),
-    });
+    process.env.DSB_CLASS = '11a';
+    const plan = makePlan([entryA, entryB]);
+    const client = makeMockClient({ getSubstitutions: mock(() => Promise.resolve([plan])) });
     const result = await callTool(registerSubstitutionsTool, client);
-    expect((result.structuredContent as any).totalEntries).toBe(1);
-    expect(result.text).toContain('06c');
+    expect(result.structuredContent.totalEntries).toBe(1);
+    expect(result.text).toContain('11a');
     delete process.env.DSB_CLASS;
   });
 
   test('className param overrides DSB_CLASS env var', async () => {
-    process.env.DSB_CLASS = '06c';
-    const plan = makePlan([
-      {
-        className: '05b',
-        type: 'Vertretung',
-        period: '3',
-        originalTeacher: 'Läp',
-        substituteTeacher: 'Jun',
-        subject: 'SPO',
-        originalRoom: '',
-        substituteRoom: '',
-        text: '',
-      },
-      {
-        className: '06c',
-        type: 'Entfall',
-        period: '5',
-        originalTeacher: 'Mül',
-        substituteTeacher: '',
-        subject: 'DE',
-        originalRoom: '',
-        substituteRoom: '',
-        text: '',
-      },
-    ]);
-    const client = makeMockClient({
-      getSubstitutions: mock(async () => [plan]),
-    });
-    const result = await callTool(registerSubstitutionsTool, client, {
-      className: '05b',
-    });
-    expect((result.structuredContent as any).totalEntries).toBe(1);
-    expect(result.text).toContain('05b');
+    process.env.DSB_CLASS = '11a';
+    const plan = makePlan([entryA, entryB]);
+    const client = makeMockClient({ getSubstitutions: mock(() => Promise.resolve([plan])) });
+    const result = await callTool(registerSubstitutionsTool, client, { className: '10a' });
+    expect(result.structuredContent.totalEntries).toBe(1);
+    expect(result.text).toContain('10a');
     delete process.env.DSB_CLASS;
   });
 });
@@ -287,27 +198,26 @@ describe('get_substitutions tool', () => {
 
 describe('get_news tool', () => {
   test('returns message when no news available', async () => {
-    const client = makeMockClient({ getNews: mock(async () => []) });
+    const client = makeMockClient();
     const result = await callTool(registerNewsTool, client);
     expect(result.text).toContain('keine');
   });
 
   test('returns formatted news list', async () => {
-    const client = makeMockClient({
-      getNews: mock(async () => [
-        {
-          id: '1',
-          title: 'Schulausflug',
-          detail: 'Morgen kein Unterricht',
-          date: '20.03.2026 08:00',
-          tags: '',
-        },
-      ]),
-    });
+    const news: NewsEntry[] = [
+      {
+        id: '1',
+        title: 'Schulausflug',
+        detail: 'Morgen kein Unterricht',
+        date: '20.03.2026 08:00',
+        tags: '',
+      },
+    ];
+    const client = makeMockClient({ getNews: mock(() => Promise.resolve(news)) });
     const result = await callTool(registerNewsTool, client);
     expect(result.text).toContain('Schulausflug');
     expect(result.text).toContain('Morgen kein Unterricht');
-    expect((result.structuredContent as any).count).toBe(1);
+    expect(result.structuredContent.count).toBe(1);
   });
 });
 
@@ -315,25 +225,24 @@ describe('get_news tool', () => {
 
 describe('get_documents tool', () => {
   test('returns message when no documents available', async () => {
-    const client = makeMockClient({ getDocuments: mock(async () => []) });
+    const client = makeMockClient();
     const result = await callTool(registerDocumentsTool, client);
     expect(result.text).toContain('keine');
   });
 
   test('returns formatted document list', async () => {
-    const client = makeMockClient({
-      getDocuments: mock(async () => [
-        {
-          id: '1',
-          title: 'Elternbrief',
-          url: 'https://example.com/brief.pdf',
-          date: '13.03.2026 09:00',
-        },
-      ]),
-    });
+    const documents: DocumentEntry[] = [
+      {
+        id: '1',
+        title: 'Elternbrief',
+        url: 'https://example.com/brief.pdf',
+        date: '13.03.2026 09:00',
+      },
+    ];
+    const client = makeMockClient({ getDocuments: mock(() => Promise.resolve(documents)) });
     const result = await callTool(registerDocumentsTool, client);
     expect(result.text).toContain('Elternbrief');
     expect(result.text).toContain('https://example.com/brief.pdf');
-    expect((result.structuredContent as any).count).toBe(1);
+    expect(result.structuredContent.count).toBe(1);
   });
 });

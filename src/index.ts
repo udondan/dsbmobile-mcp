@@ -45,37 +45,21 @@ function validateEnvironment(): void {
   }
 }
 
-/**
- * Main entry point for the DSBmobile MCP server.
- */
-async function main(): Promise<void> {
-  // Validate environment variables before doing anything else
-  validateEnvironment();
+validateEnvironment();
 
-  // Create the DSBmobile API client
-  // This reads credentials from environment variables
-  const client = new DsbmobileClient();
+const client = new DsbmobileClient();
 
-  // Create the MCP server
-  const server = new McpServer({
-    name: 'dsbmobile-mcp-server',
-    version: '1.0.0',
-  });
-
-  // Register all tools
-  registerTimetablesTool(server, client);
-  registerSubstitutionsTool(server, client);
-  registerNewsTool(server, client);
-  registerDocumentsTool(server, client);
-
-  // Connect to stdio transport
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-
-  console.error('DSBmobile MCP server running via stdio');
-}
-
-main().catch((error: unknown) => {
-  console.error('Fatal error:', error instanceof Error ? error.message : String(error));
-  process.exit(1);
+const server = new McpServer({
+  name: 'dsbmobile-mcp-server',
+  version: '1.0.0',
 });
+
+registerTimetablesTool(server, client);
+registerSubstitutionsTool(server, client);
+registerNewsTool(server, client);
+registerDocumentsTool(server, client);
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+
+console.error('DSBmobile MCP server running via stdio');

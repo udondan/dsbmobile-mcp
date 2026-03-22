@@ -51,9 +51,9 @@ export function handleApiError(error: unknown): string {
  * Creates an error message for invalid/missing credentials.
  * Used at startup to fail fast with a clear message.
  */
-export function createCredentialError(missingVar: string): string {
+export function createCredentialError(missingVariable: string): string {
   return (
-    `Error: The ${missingVar} environment variable is required but not set. ` +
+    `Error: The ${missingVariable} environment variable is required but not set. ` +
     `Please set DSB_USERNAME and DSB_PASSWORD before starting the server.`
   );
 }
