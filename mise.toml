@@ -1,0 +1,39 @@
+[tools]
+bun = "1.3.10"
+node = "22"
+
+[tasks.build]
+description = "Compile TypeScript"
+run = "bun run build"
+
+[tasks.dev]
+description = "Start server in development mode (auto-restart on changes)"
+run = "bun --watch src/index.ts"
+
+[tasks.start]
+description = "Start server"
+run = "bun src/index.ts"
+
+[tasks.clean]
+description = "Remove build artifacts"
+run = "rm -rf dist"
+
+[tasks.inspect]
+description = "Open MCP Inspector to test the server interactively"
+run = "npx @modelcontextprotocol/inspector bun src/index.ts"
+
+[tasks.test]
+description = "Run unit tests"
+run = "bun test tests/parser.test.ts tests/tools.test.ts"
+
+[tasks."test:integration"]
+description = "Run integration tests against the real DSBmobile API (requires DSB_USERNAME and DSB_PASSWORD)"
+run = "bun test tests/api.integration.test.ts"
+
+[tasks.lint]
+description = "Run ESLint and Prettier checks"
+run = "npx eslint src tests"
+
+[tasks."lint:fix"]
+description = "Auto-fix ESLint and Prettier issues"
+run = "npx eslint src tests --fix"
