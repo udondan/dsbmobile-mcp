@@ -24,7 +24,7 @@ run = "bunx @modelcontextprotocol/inspector bun src/index.ts"
 
 [tasks.test]
 description = "Run unit tests"
-run = "bun test tests/parser.test.ts tests/tools.test.ts"
+run = "bun test tests/parser.test.ts tests/tools.test.ts tests/shim.test.ts"
 
 [tasks."test:integration"]
 description = "Run integration tests against the real DSBmobile API (requires DSB_USERNAME and DSB_PASSWORD)"
@@ -32,8 +32,8 @@ run = "bun test tests/api.integration.test.ts"
 
 [tasks.lint]
 description = "Run ESLint and Prettier checks"
-run = "bunx eslint src tests"
+run = "bunx eslint src tests bin"
 
 [tasks."lint:fix"]
 description = "Auto-fix ESLint and Prettier issues"
-run = "bunx eslint src tests --fix"
+run = "bunx eslint src tests bin --fix"
