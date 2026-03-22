@@ -1,0 +1,41 @@
+{
+  "name": "dsbmobile-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for DSBmobile - access German school substitution plans (Vertretungspläne)",
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "dsbmobile-mcp-server": "src/index.ts"
+  },
+  "scripts": {
+    "build": "bun x tsc"
+  },
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "keywords": [
+    "mcp",
+    "dsbmobile",
+    "vertretungsplan",
+    "school",
+    "substitution-plan"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1",
+    "axios": "^1.7.9",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.3.11",
+    "@types/node": "^25.5.0",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "eslint-plugin-unicorn": "^63.0.0",
+    "prettier": "^3.8.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.57.1"
+  }
+}
