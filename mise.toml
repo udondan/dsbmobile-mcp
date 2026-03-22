@@ -20,7 +20,7 @@ run = "rm -rf dist"
 
 [tasks.inspect]
 description = "Open MCP Inspector to test the server interactively"
-run = "npx @modelcontextprotocol/inspector bun src/index.ts"
+run = "bunx @modelcontextprotocol/inspector bun src/index.ts"
 
 [tasks.test]
 description = "Run unit tests"
@@ -32,8 +32,8 @@ run = "bun test tests/api.integration.test.ts"
 
 [tasks.lint]
 description = "Run ESLint and Prettier checks"
-run = "npx eslint src tests"
+run = "bunx eslint src tests"
 
 [tasks."lint:fix"]
 description = "Auto-fix ESLint and Prettier issues"
-run = "npx eslint src tests --fix"
+run = "bunx eslint src tests --fix"

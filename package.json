@@ -8,7 +8,7 @@
     "dsbmobile-mcp-server": "src/index.ts"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "bun x tsc"
   },
   "engines": {
     "bun": ">=1.0"
@@ -22,12 +22,12 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/sdk": "^1.6.1",
     "axios": "^1.7.9",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bun": "^1.3.11",
     "@types/node": "^25.5.0",
     "eslint": "^10.1.0",
@@ -35,7 +35,6 @@
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-unicorn": "^63.0.0",
     "prettier": "^3.8.1",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.57.1"
   }
