@@ -130,7 +130,7 @@ export class DsbmobileClient {
       if (error instanceof Error && error.message.startsWith('Error:')) {
         throw error;
       }
-      throw new Error(handleApiError(error));
+      throw new Error(handleApiError(error), { cause: error });
     }
   }
 
@@ -152,7 +152,7 @@ export class DsbmobileClient {
       if (error instanceof Error && error.message.startsWith('Error:')) {
         throw error;
       }
-      throw new Error(handleApiError(error));
+      throw new Error(handleApiError(error), { cause: error });
     }
   }
 
@@ -174,7 +174,7 @@ export class DsbmobileClient {
       if (error instanceof Error && error.message.startsWith('Error:')) {
         throw error;
       }
-      throw new Error(handleApiError(error));
+      throw new Error(handleApiError(error), { cause: error });
     }
   }
 
@@ -302,7 +302,7 @@ export class DsbmobileClient {
       if (error instanceof Error && error.message.startsWith('Error:')) {
         throw error;
       }
-      throw new Error(handleApiError(error));
+      throw new Error(handleApiError(error), { cause: error });
     }
   }
 
