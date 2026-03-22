@@ -3,9 +3,8 @@
   "version": "1.0.0",
   "description": "MCP server for DSBmobile - access German school substitution plans (Vertretungspläne)",
   "type": "module",
-  "main": "src/index.ts",
   "bin": {
-    "dsbmobile-mcp-server": "src/index.ts"
+    "dsbmobile-mcp-server": "bin/dsbmobile-mcp-server.js"
   },
   "scripts": {
     "build": "bun x tsc"
